@@ -1,0 +1,4 @@
+cryptography==3.4.8
+fleep==1.0.1
+psutil==5.9.0
+watchdog==2.1.9
