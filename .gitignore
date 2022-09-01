@@ -1,0 +1,13 @@
+__pycache__/
+.idea/
+env/
+.vscode/
+test/
+api/
+encrypt-test/
+**/tempCodeRunnerFile.py
+.vscode
+tempCodeRunnerFile.py
+log_performance.txt
+cola do audit.txt
+backup.py
