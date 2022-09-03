@@ -1,13 +1,12 @@
-__pycache__/
-.idea/
 env/
+__pycache__/
+**/tempCodeRunnerFile.py
+tempCodeRunnerFile.py
+.idea/
+.vscode
 .vscode/
 test/
-api/
 encrypt-test/
-**/tempCodeRunnerFile.py
-.vscode
-tempCodeRunnerFile.py
-log_performance.txt
-cola do audit.txt
 backup.py
+**/honeypot-names.txt
+**/ransom-detector-hashes-list.json

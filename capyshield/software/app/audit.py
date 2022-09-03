@@ -9,26 +9,19 @@
 # As regras devem conter a keyword "ransomware-detector-key"
 # É necessário configurar o arquivo de log para que possa salvar os PIDs se um ransomware agir
 # É necessário ter um caminho definido para o arquivo que conterá as regras personalizadas
-
-
-import os
-import re
-import time
-import subprocess
+from software.config.shared_config import GeneralConfig as gc
+from software.tools.logger import logger
 from time import sleep
+import subprocess
+import time
+import re
+import os
 
 
 class Audit:
-    def __init__(self, path_to_audit, path_to_audit_custom_rule_file, path_to_audit_config, audit_custom_rules_key, audit_custom_rules_shell_key):
-        self.path_to_audit = path_to_audit
-        self.path_to_custom_rule_file = path_to_audit_custom_rule_file
-        self.path_to_audit_config = path_to_audit_config
-        self.audit_custom_rules_key = audit_custom_rules_key
-        self.audit_custom_rules_shell_key = audit_custom_rules_shell_key
-        self.initial_rule_count = subprocess.check_output([f"sudo auditctl -l -k {self.audit_custom_rules_key} | wc -l"], shell=True, stderr=subprocess.DEVNULL).decode()
-
     def setStatus(self, action):
         """Função para ligar ou desligar o serviço de auditoria"""
+        print(gc.audit_custom_rules_file_name)
         output = subprocess.run(['service', 'auditd', 'status'],  capture_output=True, text=True)
         tries = 0
         if not "could not be found" in str(output):
@@ -53,54 +46,57 @@ class Audit:
         else:
             logger.debug("Could not find Auditd service. Do you have Auditd installed?")
 
-    def createCustomRuleFile(self):
+    def createCustomRuleFile():
         """Função para criar o arquivo que terá as regras para cada honeypot"""
-        subprocess.check_output([f"auditctl -D -k '{self.audit_custom_rules_key}'"], shell=True, stderr=subprocess.DEVNULL)
-        subprocess.check_output([f"auditctl -D -k '{self.audit_custom_rules_shell_key}'"], shell=True, stderr=subprocess.DEVNULL)
-        if os.path.exists(self.path_to_custom_rule_file):
-            os.remove(self.path_to_custom_rule_file)
+        subprocess.check_output([f"auditctl -D -k '{gc.audit_custom_rules_key}'"], shell=True, stderr=subprocess.DEVNULL)
+        subprocess.check_output([f"auditctl -D -k '{gc.audit_custom_rules_shell_key}'"], shell=True, stderr=subprocess.DEVNULL)
 
-        with open(self.path_to_custom_rule_file, "w") as custom_rule_file:
+        if os.path.exists(gc.PATH_TO_AUDIT_CUSTOM_RULE_FILE):
+            os.remove(gc.PATH_TO_AUDIT_CUSTOM_RULE_FILE)
+
+        with open(gc.PATH_TO_AUDIT_CUSTOM_RULE_FILE, "w") as custom_rule_file:
             custom_rule_file.write("-D\n")
 
-    def deleteCustomRuleFileAndRules(self, deleted_count):
+    def deleteCustomRuleFileAndRules(self):
         """Função para criar o arquivo que terá as regras para cada honeypot"""
         logger.debug("Deleting audit rules foreach honeypot file")
-        rule_count = subprocess.check_output([f"sudo auditctl -l -k {self.audit_custom_rules_key} | wc -l"], shell=True, stderr=subprocess.DEVNULL).decode()
+        rule_count = subprocess.check_output([f"sudo auditctl -l -k {gc.audit_custom_rules_key} | wc -l"], shell=True, stderr=subprocess.DEVNULL).decode()
 
-        if os.path.exists(self.path_to_custom_rule_file):
-            os.remove(self.path_to_custom_rule_file)
+        if os.path.exists(gc.PATH_TO_AUDIT_CUSTOM_RULE_FILE):
+            os.remove(gc.PATH_TO_AUDIT_CUSTOM_RULE_FILE)
         else:
             logger.error("There is not custom rule file in the directory.")
 
         start = time.perf_counter()
         subprocess.check_output([f"auditctl -D"], shell=True, stderr=subprocess.DEVNULL)
         while int(rule_count) > 1:
-            rule_count = subprocess.check_output([f"sudo auditctl -l -k {self.audit_custom_rules_key} | wc -l"], shell=True, stderr=subprocess.DEVNULL).decode()
+            rule_count = subprocess.check_output([f"sudo auditctl -l -k {gc.audit_custom_rules_key} | wc -l"], shell=True, stderr=subprocess.DEVNULL).decode()
             sleep(1)
 
         end = time.perf_counter()
-        logger.debug(f"Deleted a total of {str(self.initial_rule_count).strip()} audit rules in {round(end - start, 2)}s")
 
-    def createAuditRule(self, path_to_honeypot_file):
+        initial_rule_count = subprocess.check_output([f"sudo auditctl -l -k {gc.audit_custom_rules_key} | wc -l"], shell=True, stderr=subprocess.DEVNULL).decode()
+        logger.debug(f"Deleted a total of {str(initial_rule_count).strip()} audit rules in {round(end - start, 2)}s")
+
+    def createAuditRule(path_to_dir):
         """Função para criar uma regra de auditoria"""
-        with open(self.path_to_custom_rule_file, "a") as custom_rule_file:
-            custom_rule_file.write(f'-w "{path_to_honeypot_file}" -p wa -k {self.audit_custom_rules_key}\n')
+        with open(gc.PATH_TO_AUDIT_CUSTOM_RULE_FILE, "a") as custom_rule_file:
+            custom_rule_file.write(f'-w "{path_to_dir}" -p wa -k {gc.audit_custom_rules_key}\n')
 
-    def loadRules(self, created_count):
+    def loadRules():
         """Função para carregar as regras personalizadas criadas"""
         start = time.perf_counter()
         logger.debug("Creating audit rules foreach honeypot file. This process may take a while")
-        logger.debug(f"It will be created {created_count} audit rules")
-        with open(self.path_to_custom_rule_file) as custom_rule_file:
+        logger.debug(f"It will be created {len(gc.selected_directories)} audit rules")
+        with open(gc.PATH_TO_AUDIT_CUSTOM_RULE_FILE) as custom_rule_file:
             for rule in custom_rule_file:
                 subprocess.check_output([f"auditctl {rule.strip()}"], shell=True, stderr=subprocess.DEVNULL)
 
-            subprocess.check_output([f"auditctl -a exit,always -F arch=b64 -S execve -F path=/bin/sh -k {self.audit_custom_rules_shell_key}"], shell=True, stderr=subprocess.DEVNULL)
+            subprocess.check_output([f"auditctl -a exit,always -F arch=b64 -S execve -F path=/bin/sh -k {gc.audit_custom_rules_shell_key}"], shell=True, stderr=subprocess.DEVNULL)
 
             rule_count = 0
-            while int(rule_count) < int(created_count):
-                rule_count = subprocess.check_output([f"sudo auditctl -l -k {self.audit_custom_rules_key} | wc -l"], shell=True, stderr=subprocess.DEVNULL).decode()
+            while int(rule_count) < int(len(gc.selected_directories)):
+                rule_count = subprocess.check_output([f"sudo auditctl -l -k {gc.audit_custom_rules_key} | wc -l"], shell=True, stderr=subprocess.DEVNULL).decode()
                 logger.debug(f"Loaded {str(rule_count).strip()} rules")
                 sleep(1)
 
@@ -111,4 +107,4 @@ class Audit:
 if __name__ == "__main__":
     pass
 else:
-    from software.logger import logger
+    pass
