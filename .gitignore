@@ -10,3 +10,4 @@ encrypt-test/
 backup.py
 **/honeypot-names.txt
 **/ransom-detector-hashes-list.json
+important.ini

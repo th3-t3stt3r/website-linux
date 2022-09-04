@@ -9,16 +9,18 @@
 # As regras devem conter a keyword "ransomware-detector-key"
 # É necessário configurar o arquivo de log para que possa salvar os PIDs se um ransomware agir
 # É necessário ter um caminho definido para o arquivo que conterá as regras personalizadas
-from software.config.shared_config import GeneralConfig as gc
-from software.tools.logger import logger
-from time import sleep
-import subprocess
 import time
 import re
 import os
+import subprocess
+from time import sleep
+from software.tools.logger import logger
+from software.config.shared_config import GeneralConfig as gc
 
 
 class Audit:
+    """Classe do serviço de auditoria do Linux"""
+
     def setStatus(self, action):
         """Função para ligar ou desligar o serviço de auditoria"""
         print(gc.audit_custom_rules_file_name)
@@ -46,6 +48,8 @@ class Audit:
         else:
             logger.debug("Could not find Auditd service. Do you have Auditd installed?")
 
+    #
+
     def createCustomRuleFile():
         """Função para criar o arquivo que terá as regras para cada honeypot"""
         subprocess.check_output([f"auditctl -D -k '{gc.audit_custom_rules_key}'"], shell=True, stderr=subprocess.DEVNULL)
@@ -56,6 +60,8 @@ class Audit:
 
         with open(gc.PATH_TO_AUDIT_CUSTOM_RULE_FILE, "w") as custom_rule_file:
             custom_rule_file.write("-D\n")
+
+    #
 
     def deleteCustomRuleFileAndRules(self):
         """Função para criar o arquivo que terá as regras para cada honeypot"""
@@ -78,10 +84,14 @@ class Audit:
         initial_rule_count = subprocess.check_output([f"sudo auditctl -l -k {gc.audit_custom_rules_key} | wc -l"], shell=True, stderr=subprocess.DEVNULL).decode()
         logger.debug(f"Deleted a total of {str(initial_rule_count).strip()} audit rules in {round(end - start, 2)}s")
 
+    #
+
     def createAuditRule(path_to_dir):
         """Função para criar uma regra de auditoria"""
         with open(gc.PATH_TO_AUDIT_CUSTOM_RULE_FILE, "a") as custom_rule_file:
             custom_rule_file.write(f'-w "{path_to_dir}" -p wa -k {gc.audit_custom_rules_key}\n')
+
+    #
 
     def loadRules():
         """Função para carregar as regras personalizadas criadas"""
@@ -103,7 +113,8 @@ class Audit:
         end = time.perf_counter()
         logger.debug(f"Loaded a total of {int(rule_count)} audit rules in {round(end - start, 2)}s")
 
-        # MAIN
+
+# MAIN
 if __name__ == "__main__":
     pass
 else:

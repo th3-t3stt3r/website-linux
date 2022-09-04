@@ -8,11 +8,14 @@ from software.config.shared_config import GeneralConfig as gc
 
 
 def checkAndKillProcess(process, method):
-    psutil.Process(process).status()
-    os.kill(process, SIGKILL)
-    logger.critical(f"Proabable malicious process with PID {process}. Killing it...")
-    end = time.perf_counter()
-    logger.critical(f"Killed process with PID {process} in {round(end - start, 3)}s - [Method {method}]")
+    try:
+        psutil.Process(process).status()
+        os.kill(process, SIGKILL)
+        logger.critical(f"Proabable malicious process with PID {process}. Killing it...")
+        end = time.perf_counter()
+        logger.critical(f"Killed process with PID {process} in {round(end - start, 3)}s - [Method {method}]")
+    except Exception as e:
+        print(e)
 
 
 def tryKillMaliciousProcess(current_event_path):
@@ -20,18 +23,23 @@ def tryKillMaliciousProcess(current_event_path):
     global start
     start = time.perf_counter()
     ppid_pid_pattern = "(?<=pid=)(.*?)(?=\ )"
-    audit_event_pattern = "(?<=----)(\n|.)*?(?=----|\s*$)"
+    tty_pattern = "(?<=tty=)(.*?)(?=\ )"
+    comm_pattern = '(?<=comm=")(.*?)(?=")'
+    #audit_event_pattern = "(?<=----)(\n|.)*?(?=----|\s*$)"
     try:
-        event_list = subprocess.check_output([f"ausearch -k {gc.audit_custom_rules_key} | tail -n 300"], shell=True, stderr=subprocess.DEVNULL).decode().rstrip().split("----")
+        event_list = subprocess.check_output([f"ausearch -k {gc.audit_custom_rules_key} | tail -n 100"], shell=True, stderr=subprocess.DEVNULL).decode().rstrip().split("----")
+
         for event in event_list:
             if current_event_path in event:
-                ppid_malicious = re.findall(ppid_pid_pattern, event_list[0])[0]
-
-                if ppid_malicious != '1':
-                    try:
-                        checkAndKillProcess(int(ppid_malicious), '1')
-                    except:
-                        pass
+                if re.findall(tty_pattern, event)[0] != "(none)":
+                    if re.findall(comm_pattern, event)[0] != "rm":
+                        ppid_malicious = re.findall(ppid_pid_pattern, event)[0]
+                        if ppid_malicious != '1' and ppid_malicious != gc.PID:
+                            try:
+                                pass
+                                checkAndKillProcess(int(ppid_malicious), '1')
+                            except:
+                                pass
     except:
         pass
 
@@ -51,8 +59,9 @@ def tryKillMaliciousProcess(current_event_path):
                 pass
 
             for process in reversed(malicious_process_list):
-                if process != '1':
+                if process != '1' and ppid_malicious != gc.PID:
                     try:
+                        pass
                         checkAndKillProcess(int(process), '2')
                     except:
                         pass

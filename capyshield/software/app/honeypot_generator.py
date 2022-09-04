@@ -1,20 +1,17 @@
-# TODO
-# PRINTAR A QUANTIDADE DE DIRETÓRIOS EXISTENTES NO SISTEMA (COM BASE NOS DIRETÓRIOS PASSADOS) X
-# INPUT DE QUAL INTERVALO DE DIRETÓRIOS SERÁ COLOCADO UM HONEYPOT X
-# CRIAR NOVOS HONEYPOTS PARA NOVOS DIRETÓRIOS
-# ATUALIZAR JSON E AS REGRAS QUANDO ARQUIVOS HONEYPOT SÃO MOVIDOS OU DELETADOS
-# OPÇÃO DE GERAR ARQUIVOS OCULTOS OU NÃO PARA MAIOR SEGURANÇA
-# FUNCIONALIDADE PARA GERAR HONEYPOT APENAS NO DIRETÓRIO ROOT E NO DIRETÓRIO TOPO DA ÁRVORE
-
 import json
-import random
-import string
 import os
-import hashlib
 import time
-from software.tools.logger import logger
-from software.config.shared_config import GeneralConfig as gc
 from software.app.audit import Audit
+from software.tools.logger import logger
+from software.tools.utils import returnPercentage, randomString
+from software.config.shared_config import GeneralConfig as gc
+from software.app.data_handler import generateJson, deleteJson, generateHoneypotNamesList, deleteHoneypotNamesList, generateHoneypotDataDict
+
+
+def start():
+    global hg
+    hg = HoneypotGenerator()
+    hg.run()
 
 
 class HoneypotGenerator:
@@ -30,65 +27,31 @@ class HoneypotGenerator:
             gc.honeypot_interval = 1
             quit()
 
-    def calcPercentage(self, directory_count, counter):
-        """Função para calcular a regra de 3"""
-        v1 = directory_count  # numero de 100%
-        v2 = 100  # 100%
-        v3 = counter  # número a descobrir a porcentagem
-        return v3 * v2 / v1
-
-    def returnPercentage(self, directory_count, counter, porcentage):
-        """Função para retornar a porcentagem"""
-        for i in range(100):
-            counter = round(counter + 0.01, 2)
-            if counter == round(directory_count * porcentage, 2):
-                logger.debug(f"Working on {'deleting' if gc.delete_honeypots else 'creating'} honeypots: {round(self.calcPercentage(directory_count, counter))}%")
-                porcentage = round(porcentage + 0.1, 2)
-        return counter, porcentage
-
-    def __randomString(self, action):
-        """Função para gerar uma string única e aleatória que ficará dentro de cada honeypot"""
-        if action == "unique-hash":
-            characters = string.ascii_letters + string.digits + string.punctuation
-            random_string = ''.join(random.choice(characters) for i in range(50))
-            return random_string
-        if action == "unique-name":
-            characters = string.ascii_letters + string.digits
-            random_string = ''.join(random.choice(characters) for i in range(25))
-            return random_string + self.honeypot_file_extension
-
-    def __generateHash(self, honeypot_file):
-        """Função para gerar uma hash para o arquivo de honeypot criado"""
-        file_data = honeypot_file.read()
-        readable_hash = hashlib.sha1(file_data).hexdigest()
-
-        honeypot_file_hash_dict = {
-            "absolute_path": honeypot_file.name,
-            "hash": readable_hash
-        }
-        honeypot_files_hash_list.append(honeypot_file_hash_dict)
+    #
 
     def __generateHoneypots(self):
         """Função para gerar os honeypots"""
-        global honeypot_files_hash_list
-        global honeypot_names_list
-        honeypot_files_hash_list = []
+        honeypots_dict_list = []
         honeypot_names_list = []
         total_created_count = 0
 
         Audit.createCustomRuleFile()
+
         start = time.perf_counter()
         for directory in gc.selected_directories:
             directory_count = 0
+
             for root in os.walk(directory):
                 directory_count += 1
 
             logger.debug(f"Creating honeypots in {directory}")
             logger.debug(f"There are {directory_count} subdirectories inside {directory}")
             logger.debug(f"The honeypot creation interval is set to: {gc.honeypot_interval if not gc.disable_honeypot_interval else 'disabled'}")
+
             if directory_count == 0:
                 directory_count = 1
             logger.debug(f"It will be created {round(directory_count / gc.honeypot_interval) if not gc.disable_honeypot_interval else directory_count} honeypots")
+
             percentage = 0.1
             created_count = 0
             directory_walk_count = 0
@@ -97,32 +60,29 @@ class HoneypotGenerator:
                     try:
                         if os.access(current_path, os.W_OK):
                             if gc.random_honeypot_file_name:
-                                gc.honeypot_file_name = ("." if gc.hidden_honeypot_file else "") + self.__randomString("unique-name")
+                                gc.honeypot_file_name = ("." if gc.hidden_honeypot_file else "") + randomString("unique-name")
 
                             honeypot_names_list.append(gc.honeypot_file_name)
 
                             # Criar o honeypot
                             with open(os.path.join(current_path, gc.honeypot_file_name), 'w') as honeypot_file:
                                 honeypot_file.write("THIS IS A PYTHON RANSOMWARE DETECTOR FILE! PLEASE! DO NOT MOVE, DELETE, RENAME OR MODIFY THIS FILE!\n")
-                                honeypot_file.write(f"Unique string for this file: {self.__randomString('unique-hash')}")
+                                honeypot_file.write(f"Unique string for this file: {randomString('unique-hash')}")
 
                             # Gerar a hash para o honeypot criado
                             with open(os.path.join(current_path, gc.honeypot_file_name), 'rb') as honeypot_file:
-                                self.__generateHash(honeypot_file)
+                                honeypots_dict_list.append(generateHoneypotDataDict(honeypot_file))
 
                             created_count += 1
 
                     except Exception as e:
                         logger.error(e)
-                        quit()
                         continue
-                directory_walk_count, percentage = self.returnPercentage(directory_count, directory_walk_count, percentage)
+
+                directory_walk_count, percentage = returnPercentage(directory_count, directory_walk_count, percentage)
 
             logger.debug(f"Created a total of {round(created_count)} honeypots in {directory}")
             total_created_count = total_created_count + created_count
-
-        # Criar a regra no audit
-        Audit.createAuditRule(directory)
 
         end = time.perf_counter()
         logger.debug(f"Created honeypots in {round(end - start, 3)}s")
@@ -131,42 +91,19 @@ class HoneypotGenerator:
             logger.error("No honeypots were created in any directories. Quitting...")
             quit()
 
+        Audit.createAuditRule(directory)
         Audit.loadRules()
 
-        # Gerar o JSON para os honeypot files criados e suas respectivas hashes
-        self.__generateJson(honeypot_files_hash_list)
+        generateJson(honeypots_dict_list)
 
         if gc.random_honeypot_file_name:
-            self.__generateHoneypotNamesList(honeypot_names_list)
+            generateHoneypotNamesList(honeypot_names_list)
         else:
-            self.__generateHoneypotNamesList(gc.honeypot_file_name)
+            generateHoneypotNamesList(gc.honeypot_file_name)
 
-    def __generateJson(self, honeypot_files_hash_list):
-        logger.debug("Generating JSON file")
-        """Função para gerar o JSON com as entradas de cada honeypot"""
-        json_object = json.dumps(honeypot_files_hash_list, indent=4)
+    #
 
-        # Se a pasta config não existir, criar uma
-        if not os.path.exists(gc.PATH_TO_CONFIG_FOLDER):
-            os.makedirs(gc.PATH_TO_CONFIG_FOLDER)
-
-        # Criar um novo .json com o objeto json criado
-        with open(os.path.join(gc.PATH_TO_CONFIG_FOLDER, gc.json_file_name), 'w') as json_file:
-            json_file.write(json_object)
-
-    def __generateHoneypotNamesList(self, honeypot_names_list):
-        logger.debug("Generating Honeypot names file")
-        if not os.path.exists(gc.PATH_TO_CONFIG_FOLDER):
-            os.makedirs(gc.PATH_TO_CONFIG_FOLDER)
-
-        with open(os.path.join(gc.PATH_TO_CONFIG_FOLDER, gc.honeypot_names_file), 'w') as names_file:
-            if gc.random_honeypot_file_name:
-                for name in honeypot_names_list:
-                    names_file.write(f"{name}\n")
-            else:
-                names_file.write(gc.honeypot_file_name)
-
-    def __deleteHoneypotsAndRules(self):
+    def __deleteHoneypots():
         """Função para deletar todos os honeypots"""
         try:
             json_paths_list = []
@@ -199,7 +136,7 @@ class HoneypotGenerator:
                             if file_absolute_path in json_paths_list:
                                 os.remove(file_absolute_path)
                                 deleted_count += 1
-                        directory_walk_count, percentage = self.returnPercentage(directory_count, directory_walk_count, percentage)
+                        directory_walk_count, percentage = returnPercentage(directory_count, directory_walk_count, percentage)
                 except Exception as e:
                     logger.error(e)
                     # logger.error(f'Found an error in {current_path}: {str(e.__class__.__name__)}')
@@ -216,31 +153,10 @@ class HoneypotGenerator:
         Audit.deleteCustomRuleFileAndRules(round(deleted_count))
 
         # Deletar o JSON das hashes
-        self.__deleteJson()
-        self.__deleteHoneypotNamesList()
+        deleteJson()
+        deleteHoneypotNamesList()
 
-    def __deleteJson(self):
-        """Função deletar o JSON com as entradas de cada honeypot"""
-        logger.debug("Deleting JSON file")
-        if os.path.exists(gc.PATH_TO_CONFIG_FOLDER):
-            try:
-                os.remove(os.path.join(gc.PATH_TO_CONFIG_FOLDER, gc.json_file_name))
-            except FileNotFoundError:
-                logger.error(f'Could not find {gc.json_file_name} in {gc.PATH_TO_CONFIG_FOLDER}')
-                quit()
-
-    def __deleteHoneypotNamesList(self):
-        """Função para deletar o arquivo com os nomes dos honeypots"""
-        logger.debug("Deleting Honeypot names file")
-        if os.path.exists(gc.PATH_TO_CONFIG_FOLDER):
-            try:
-                os.remove(os.path.join(gc.PATH_TO_CONFIG_FOLDER, gc.honeypot_names_file))
-            except FileNotFoundError:
-                logger.error(f'Could not find {gc.honeypot_names_file} in {gc.PATH_TO_CONFIG_FOLDER}')
-
-    def updateJson(self):
-        """Função para atualizar o JSON, modificando as entradas de cada honeypot afetado"""
-        print("atualizar o json")
+    #
 
     def run(self):
         """Função para criar ou deletar os honeypots"""
@@ -251,7 +167,7 @@ class HoneypotGenerator:
 
         # DELETAR HONEYPOTS
         elif gc.delete_honeypots:
-            self.__deleteHoneypotsAndRules()
+            self.__deleteHoneypots()
         end = time.perf_counter()
         logger.debug(f"{'Created' if not gc.delete_honeypots else 'Deleted'} honeypots and rules in {round(end - start, 3)}s")
 
@@ -261,4 +177,3 @@ if __name__ == "__main__":
     pass
 else:
     from software.tools.logger import logger
-    print(__package__)

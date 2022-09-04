@@ -2,17 +2,17 @@
 if __name__ == "__main__":
     import os
     import psutil
-    from pyfiglet import Figlet
     from colorama import init
+    from pyfiglet import Figlet
     from termcolor import colored
-    from software.config.shared_config import GeneralConfig as gc
     from software.app.audit import Audit
-    from software.app.honeypot_generator import HoneypotGenerator
-    from software.app.monitor import FileMonitor
     from software.tools.logger import logger
+    import software.app.monitor as FileMonitor
+    import software.app.honeypot_generator as HoneypotGenerator
+    from software.config.shared_config import GeneralConfig as gc
 
     # SET PRIORITY
-    psutil.Process(os.getpid()).nice(19)
+    psutil.Process(gc.PID).nice(19)
 
     # DEFINE GENERAL CONFIG
 
@@ -21,20 +21,20 @@ if __name__ == "__main__":
     f = Figlet(font='slant')
     print(colored(f.renderText('CapyShield'), 'red'))
     print(colored('--- A Ransomware Detector by Bash Bunny Group ---\n\n', 'red'))
-    logger.debug("Starting Ransomware Detector")
+    logger.debug("Starting CapyShield Detector")
 
-    # AUDIT OBJ
+    # AUDIT
     Audit().setStatus("on")
 
-    # HONEYPOT GENERATOR OBJ
+    # HONEYPOT GENERATOR
     if not gc.skip_to_monitor:
-        hg = HoneypotGenerator()
-        hg.run()
+        logger.debug("Starting Honeypot Generator")
+        HoneypotGenerator.start()
 
-    # FILE MONITOR OBJ
+    # FILE MONITOR
     if not gc.delete_honeypots:
-        fm = FileMonitor()
-        fm.run()
+        logger.debug("Starting Monitor")
+        FileMonitor.start()
     else:
         quit()
 

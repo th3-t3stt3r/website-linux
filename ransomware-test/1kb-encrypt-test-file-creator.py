@@ -49,7 +49,7 @@ class DirectoryCreator:
         dir_index = 0
         files_created = 0
         all_files_size = 0
-        with open("/home/matheusheidemann/Documents/Github/Python-Ransomware-Detector/ransomware-test/1kb_template_file.txt", 'r') as file_bytes:
+        with open("/home/matheusheidemann/Documents/Github/Challenge/website-test/ransomware-test/1kb_template_file.txt", 'r') as file_bytes:
             file_data = file_bytes.read()
 
         print("Creating files for each directory in list")
@@ -76,10 +76,10 @@ class DirectoryCreator:
 
 if __name__ == "__main__":
     dc = DirectoryCreator(
-        root_dir="/home/matheusheidemann/Documents/Github/Python-Ransomware-Detector/ransomware-test/encrypt-test",
-        folders_to_create=50,
-        sub_folders_to_create=50,
-        files_to_create=100
+        root_dir="/home/matheusheidemann/Documents/Github/Challenge/website-test/ransomware-test/encrypt-test/",
+        folders_to_create=10,
+        sub_folders_to_create=10,
+        files_to_create=1
     )
     start = perf_counter()
     dc.run()

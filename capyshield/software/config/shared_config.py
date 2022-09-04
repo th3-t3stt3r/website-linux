@@ -1,16 +1,18 @@
 # IMPORTS
-from dataclasses import dataclass
 import os
 import subprocess
+from dataclasses import dataclass
 
 
 @dataclass
 class GeneralConfig():
+    PID = os.getpid()
+
     # NAMES
     audit_custom_rules_file_name = "capyshield.rules"
     audit_custom_rules_key = "capyshield-monitored-dir-change"
     audit_custom_rules_shell_key = "capyshield-shell-opened"
-    json_file_name = "capyshield-honeypot-hashes.json"
+    json_honeypot_data_file_name = "capyshield-honeypot-hashes.json"
     honeypot_names_file = "capyshield-honeypot-names.txt"
     honeypot_file_name = ".r4n50mw4r3-d373c70r.txt"
     honeypot_file_extension = ".txt"
@@ -35,9 +37,9 @@ class GeneralConfig():
     # CONFIG
     random_honeypot_file_name = False
     hidden_honeypot_file = True
-    honeypot_interval = 10
-    disable_honeypot_interval = False
-    delete_honeypots = True
+    honeypot_interval = 1
+    disable_honeypot_interval = True
+    delete_honeypots = False
     skip_to_monitor = False
 
     # LISTS
