@@ -12,8 +12,10 @@ class GeneralConfig():
     audit_custom_rules_file_name = "capyshield.rules"
     audit_custom_rules_key = "capyshield-monitored-dir-change"
     audit_custom_rules_shell_key = "capyshield-shell-opened"
+    audit_custom_rules_killed_key = "capyshield-killed"
     json_honeypot_data_file_name = "capyshield-honeypot-hashes.json"
     honeypot_names_file = "capyshield-honeypot-names.txt"
+    honeypot_interval_count_file = "honeypot_interval_count.txt"
     honeypot_file_name = ".r4n50mw4r3-d373c70r.txt"
     honeypot_file_extension = ".txt"
 
@@ -25,6 +27,7 @@ class GeneralConfig():
     data_audit_d = os.path.join(data_audit_conf_d.rsplit('/', 1)[0])
     data_audit_custom_rule_f = os.path.join(data_audit_d, "rules.d", audit_custom_rules_file_name)
     data_file_ext_l = [line.rstrip() for line in open(os.path.join(data_main_d, "software/tools/file_extensions.txt"))]
+    data_honeypot_interval_f = os.path.join(data_config_d, honeypot_interval_count_file)
 
     # PATHS
     PATH_TO_MAIN_FOLDER = data_main_d
@@ -33,6 +36,7 @@ class GeneralConfig():
     PATH_TO_AUDIT_CONFIG = data_audit_conf_d
     PATH_TO_AUDIT = data_audit_d
     PATH_TO_AUDIT_CUSTOM_RULE_FILE = data_audit_custom_rule_f
+    PATH_TO_HONEYPOT_INTERVAL_COUNT_FILE = data_honeypot_interval_f
 
     # CONFIG
     random_honeypot_file_name = False
@@ -41,8 +45,9 @@ class GeneralConfig():
     disable_honeypot_interval = True
     delete_honeypots = False
     skip_to_monitor = False
+    file_update_interval = 180
 
-    # LISTS
+    # DYNAMIC CONFIG
     selected_directories = [
         "/home/matheusheidemann/Documents/Github/Challenge/website-test/ransomware-test/encrypt-test"
     ]

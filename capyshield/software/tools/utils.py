@@ -35,3 +35,7 @@ def randomString(action):
         characters = string.ascii_letters + string.digits
         random_string = ''.join(random.choice(characters) for i in range(25))
         return random_string + gc.honeypot_file_extension
+
+
+def isHexStr(s):
+    return set(s).issubset(string.hexdigits)

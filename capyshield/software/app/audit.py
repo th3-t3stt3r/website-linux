@@ -23,7 +23,6 @@ class Audit:
 
     def setStatus(self, action):
         """Função para ligar ou desligar o serviço de auditoria"""
-        print(gc.audit_custom_rules_file_name)
         output = subprocess.run(['service', 'auditd', 'status'],  capture_output=True, text=True)
         tries = 0
         if not "could not be found" in str(output):
@@ -54,6 +53,7 @@ class Audit:
         """Função para criar o arquivo que terá as regras para cada honeypot"""
         subprocess.check_output([f"auditctl -D -k '{gc.audit_custom_rules_key}'"], shell=True, stderr=subprocess.DEVNULL)
         subprocess.check_output([f"auditctl -D -k '{gc.audit_custom_rules_shell_key}'"], shell=True, stderr=subprocess.DEVNULL)
+        subprocess.check_output([f"auditctl -D -k '{gc.audit_custom_rules_killed_key}'"], shell=True, stderr=subprocess.DEVNULL)
 
         if os.path.exists(gc.PATH_TO_AUDIT_CUSTOM_RULE_FILE):
             os.remove(gc.PATH_TO_AUDIT_CUSTOM_RULE_FILE)
@@ -106,7 +106,7 @@ class Audit:
 
             rule_count = 0
             while int(rule_count) < int(len(gc.selected_directories)):
-                rule_count = subprocess.check_output([f"sudo auditctl -l -k {gc.audit_custom_rules_key} | wc -l"], shell=True, stderr=subprocess.DEVNULL).decode()
+                rule_count = subprocess.check_output([f"auditctl -l -k {gc.audit_custom_rules_key} | wc -l"], shell=True, stderr=subprocess.DEVNULL).decode()
                 logger.debug(f"Loaded {str(rule_count).strip()} rules")
                 sleep(1)
 

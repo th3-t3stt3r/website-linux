@@ -12,17 +12,19 @@ import pathlib
 import re
 import logging
 import hashlib
+import time
 from software.tools.logger import logger
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from software.config.shared_config import GeneralConfig as gc
-from software.app.data_handler import updateHoneypotData
+from software.app.honeypot_generator import generateSingleHoneypot
+from software.app.data_handler import DataCreator, DataRemover, DataUpdater
 from software.app.proc_killer import tryKillMaliciousProcess
-from software.app.data_handler import getJsonFileData, getHoneypotNamesFileData
-
 
 # Classe FileSystemModifications, que herda a classe FileSystemEventHandler do watchdog
 # event.src_path é basicamente o caminho que o handler retorna
+
+
 def start():
     global fm
     fm = FileMonitor()
@@ -34,8 +36,15 @@ class FileMonitor:
 
     def __init__(self):
         if os.path.exists(gc.PATH_TO_CONFIG_FOLDER):
-            self.json_honeypot_data_file_data = getJsonFileData(gc.json_honeypot_data_file_name)
-            self.honeypot_names_file_data = getHoneypotNamesFileData(gc.honeypot_names_file)
+            self.json_honeypot_data_file_data = DataUpdater.getJsonData(gc.json_honeypot_data_file_name)
+            self.honeypot_names_file_data = DataUpdater.getTxtData(gc.honeypot_names_file)
+            self.honeypots_to_delete = []
+            self.honeypots_to_update = []
+            self.honeypots_to_create = []
+            self.has_file_changes = False
+            self.has_delete_changes = False
+            self.has_update_changes = False
+            self.has_create_changes = False
         else:
             logger.error(f'Could not find {gc.json_file_name} in {gc.PATH_TO_CONFIG_FOLDER}')
             quit()
@@ -53,12 +62,31 @@ class FileMonitor:
             observers.append(observer)
 
         observer.start()
-
         logger.debug('File Monitor has started...')
-        try:
-            while True:
 
+        try:
+            current_time = time.time()
+            while True:
+                new_time = time.time() - current_time
+                if new_time > gc.file_update_interval and self.has_file_changes:
+                    print('1')
+                    if self.has_delete_changes:
+                        print('2')
+                        DataUpdater.updateDelete(self.honeypots_to_delete, gc.json_honeypot_data_file_name, fm.json_honeypot_data_file_data)
+
+                    if self.has_create_changes:
+                        DataUpdater.updateCreate(self.honeypots_to_create, gc.json_honeypot_data_file_name)
+
+                    fm.json_honeypot_data_file_data = DataUpdater.getJsonData(gc.json_honeypot_data_file_name)
+                    fm.honeypot_names_file_data = DataUpdater.getTxtData(gc.honeypot_names_file)
+
+                    self.has_file_changes = False
+                    current_time = time.time()
+                    self.honeypots_to_delete = []
+                    self.honeypots_to_update = []
+                    self.honeypots_to_create = []
                 continue
+
         except KeyboardInterrupt:
             for observer in observers:
                 observer.unschedule_all()
@@ -75,6 +103,43 @@ class FileMonitor:
 
     class EventHandler(FileSystemEventHandler):
         """Classe com funções de event handler"""
+
+        def __init__(self):
+            self.unknow_extension_event_count = 0
+
+        #
+
+        def on_created(self, event):
+            try:
+                if os.path.isdir(event.src_path):
+                    new_honeypot_dict = generateSingleHoneypot(event.src_path)
+                    if new_honeypot_dict:
+                        fm.honeypots_to_create.append(new_honeypot_dict)
+                        fm.has_file_changes = True
+                        fm.has_create_changes = True
+
+                else:
+                    has_know_ext = False
+                    file_ext = pathlib.Path(re.findall("([^\/]+$)", event.src_path)[0]).suffix
+
+                    if file_ext in gc.file_ext_list:
+                        has_know_ext = True
+
+                    if not has_know_ext and not file_ext == "":
+                        if self.unknow_extension_event_count == 0:
+                            logger.warning(f"Unknow file extension detected ({file_ext}) in {event.src_path}")
+                        if self.unknow_extension_event_count == 30:
+                            logger.warning(f"Unknow file extension detected ({file_ext}) in {event.src_path} (and 29 more)!")
+                            self.unknow_extension_event_count = 0
+                        self.unknow_extension_event_count += 1
+                        try:
+                            tryKillMaliciousProcess(event.src_path)
+                        except:
+                            pass
+            except:
+                pass
+
+        #
 
         # Monitorar modificações nos honeypots
         def on_modified(self, event):
@@ -113,31 +178,31 @@ class FileMonitor:
                     if not os.path.exists(event.src_path):
                         logger.warning(f"Honeypot in {event.src_path} was deleted!")
                         tryKillMaliciousProcess(event.src_path)
-                        fm.json_honeypot_data_file_data = updateHoneypotData(event.src_path, gc.json_honeypot_data_file_name, fm.json_honeypot_data_file_data, "delete")
+                        fm.honeypots_to_delete.append(event.src_path)
+                        fm.has_file_changes = True
+                        fm.has_delete_changes = True
+
+                else:
+                    if not os.path.exists(event.src_path):
+                        honeypot_deleted = False
+                        for element in fm.json_honeypot_data_file_data:
+                            if event.src_path in element['absolute_path']:
+                                honeypot_deleted = True
+                                break
+                            else:
+                                continue
+
+                        if honeypot_deleted:
+                            logger.warning(f"Folder with goneypots in {event.src_path} was deleted!")
+                            fm.honeypots_to_delete.append(event.src_path)
+                            fm.has_file_changes = True
+                            fm.has_delete_changes = True
 
             except IndexError as e:
                 pass
 
             except Exception as e:
                 logger.error(e)
-                pass
-
-        #
-
-        def on_created(self, event):
-            try:
-                file_ext = pathlib.Path(re.findall("([^\/]+$)", event.src_path)[0]).suffix
-                has_know_ext = False
-                for current_ext in gc.file_ext_list:
-                    if current_ext == file_ext:
-                        has_know_ext = True
-                if not has_know_ext and not file_ext == "":
-                    logger.warning(f"Unknow file extension detected ({file_ext}) in {event.src_path}!")
-                    try:
-                        tryKillMaliciousProcess(event.src_path)
-                    except:
-                        pass
-            except:
                 pass
 
 
