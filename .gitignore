@@ -5,10 +5,7 @@ tempCodeRunnerFile.py
 .idea/
 .vscode
 .vscode/
-test/
 encrypt-test/
-backup.py
-important.ini
 bunnyshield/software/config/bs-config.json
 bunnyshield/software/config/honeypot_interval_count.txt
 bunnyshield/software/config/honeypot-names.txt
