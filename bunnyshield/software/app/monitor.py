@@ -18,7 +18,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from software.config.shared_config import GeneralConfig as gc
 from software.app.honeypot_generator import generateSingleHoneypot
-from software.app.data_handler import DataCreator, DataRemover, DataUpdater
+from software.app.data_handler import DataUpdater
 from software.app.proc_killer import tryKillMaliciousProcess
 
 # Classe FileSystemModifications, que herda a classe FileSystemEventHandler do watchdog
@@ -41,7 +41,6 @@ class FileMonitor:
             self.honeypots_to_delete = []
             self.honeypots_to_update = []
             self.honeypots_to_create = []
-            self.has_file_changes = False
             self.has_delete_changes = False
             self.has_update_changes = False
             self.has_create_changes = False
@@ -68,23 +67,27 @@ class FileMonitor:
             current_time = time.time()
             while True:
                 new_time = time.time() - current_time
-                if new_time > gc.file_update_interval and self.has_file_changes:
-                    print('1')
-                    if self.has_delete_changes:
-                        print('2')
-                        DataUpdater.updateDelete(self.honeypots_to_delete, gc.json_honeypot_data_file_name, fm.json_honeypot_data_file_data)
+                if new_time > gc.file_update_interval:
 
                     if self.has_create_changes:
                         DataUpdater.updateCreate(self.honeypots_to_create, gc.json_honeypot_data_file_name)
+                        self.updateAllData()
+                        self.has_create_changes = False
+                        self.honeypots_to_create = []
 
-                    fm.json_honeypot_data_file_data = DataUpdater.getJsonData(gc.json_honeypot_data_file_name)
-                    fm.honeypot_names_file_data = DataUpdater.getTxtData(gc.honeypot_names_file)
+                    if self.has_update_changes:
+                        self.updateAllData()
+                        self.honeypots_to_update = []
+                        pass
 
-                    self.has_file_changes = False
+                    if self.has_delete_changes:
+                        DataUpdater.updateDelete(self.honeypots_to_delete, gc.json_honeypot_data_file_name, fm.json_honeypot_data_file_data)
+                        self.updateAllData()
+                        self.has_delete_changes = False
+                        self.honeypots_to_delete = []
+
                     current_time = time.time()
-                    self.honeypots_to_delete = []
-                    self.honeypots_to_update = []
-                    self.honeypots_to_create = []
+
                 continue
 
         except KeyboardInterrupt:
@@ -101,21 +104,33 @@ class FileMonitor:
 
     #
 
+    def updateAllData(self):
+        fm.json_honeypot_data_file_data = DataUpdater.getJsonData(gc.json_honeypot_data_file_name)
+        fm.honeypot_names_file_data = DataUpdater.getTxtData(gc.honeypot_names_file)
+
+    #
+
     class EventHandler(FileSystemEventHandler):
         """Classe com funções de event handler"""
 
         def __init__(self):
             self.unknow_extension_event_count = 0
+            self.honeypot_deleted_event_count = 0
+            self.folder_with_honeypots_deleted_event_count = 0
+            self.create_current_time = time.time()
+            self.delete_current_time = time.time()
+            self.modify_current_time = time.time()
+            self.check_ransom = False
 
         #
 
         def on_created(self, event):
+            logger.debug("Created " + event.src_path)
             try:
                 if os.path.isdir(event.src_path):
                     new_honeypot_dict = generateSingleHoneypot(event.src_path)
                     if new_honeypot_dict:
                         fm.honeypots_to_create.append(new_honeypot_dict)
-                        fm.has_file_changes = True
                         fm.has_create_changes = True
 
                 else:
@@ -126,16 +141,20 @@ class FileMonitor:
                         has_know_ext = True
 
                     if not has_know_ext and not file_ext == "":
-                        if self.unknow_extension_event_count == 0:
-                            logger.warning(f"Unknow file extension detected ({file_ext}) in {event.src_path}")
-                        if self.unknow_extension_event_count == 30:
-                            logger.warning(f"Unknow file extension detected ({file_ext}) in {event.src_path} (and 29 more)!")
-                            self.unknow_extension_event_count = 0
+                        new_time = time.time() - self.create_current_time
                         self.unknow_extension_event_count += 1
-                        try:
+
+                        if new_time > 1:
+                            logger.warning(f"Unknow file extension detected ({file_ext}) in {event.src_path} {'' if self.unknow_extension_event_count <= 1 else '(and ' + str(self.unknow_extension_event_count) + ' more)'}")
+
+                            self.check_ransom = True
+                            self.create_current_time = time.time()
+                            self.unknow_extension_event_count = 0
+
+                        if self.check_ransom:
                             tryKillMaliciousProcess(event.src_path)
-                        except:
-                            pass
+                            self.check_ransom = False
+
             except:
                 pass
 
@@ -143,6 +162,7 @@ class FileMonitor:
 
         # Monitorar modificações nos honeypots
         def on_modified(self, event):
+            logger.debug("[SRC_PATH] Modified " + event.src_path)
             try:
                 if fm.isHonepot(event.src_path):
                     for dict in fm.json_honeypot_data_file_data:
@@ -167,24 +187,35 @@ class FileMonitor:
 
         # Monitorar caso algum diretório seja mudado de lugar, para atualizar o JSON dos honeypots
         def on_moved(self, event):
-            logger.debug("Moved " + event.src_path)
+            logger.debug("[SRC_PATH] Moved " + event.src_path)
+            logger.debug("[DEST_PATH] Moved " + event.dest_path)
 
         #
 
         # Monitorar se algum diretório for deletado, para remover as entradas dos mesmos no JSON dos honeypots
+
         def on_deleted(self, event):
+            logger.debug("Deleted " + event.src_path)
             try:
                 if re.findall("([^\/]+$)", event.src_path)[0] in fm.honeypot_names_file_data:
                     if not os.path.exists(event.src_path):
-                        logger.warning(f"Honeypot in {event.src_path} was deleted!")
-                        tryKillMaliciousProcess(event.src_path)
+                        new_time = time.time() - self.delete_current_time
+                        self.honeypot_deleted_event_count += 1
+
                         fm.honeypots_to_delete.append(event.src_path)
-                        fm.has_file_changes = True
                         fm.has_delete_changes = True
+
+                        if new_time > 1:
+                            logger.warning(f"Honeypot in {event.src_path} was deleted {'' if self.honeypot_deleted_event_count <= 1 else '(and ' + str(self.honeypot_deleted_event_count) + ' more)'}")
+                            self.check_ransom = True
+                            self.delete_current_time = time.time()
+                            self.honeypot_deleted_event_count = 0
 
                 else:
                     if not os.path.exists(event.src_path):
+                        new_time = time.time() - self.delete_current_time
                         honeypot_deleted = False
+
                         for element in fm.json_honeypot_data_file_data:
                             if event.src_path in element['absolute_path']:
                                 honeypot_deleted = True
@@ -192,11 +223,27 @@ class FileMonitor:
                             else:
                                 continue
 
+                        for element in fm.honeypots_to_create:
+                            if event.src_path in element['absolute_path']:
+                                honeypot_deleted = True
+                                break
+                            else:
+                                continue
+
                         if honeypot_deleted:
-                            logger.warning(f"Folder with goneypots in {event.src_path} was deleted!")
                             fm.honeypots_to_delete.append(event.src_path)
-                            fm.has_file_changes = True
                             fm.has_delete_changes = True
+
+                            self.folder_with_honeypots_deleted_event_count += 1
+                            if new_time > 1:
+                                logger.debug(f"Folder with honeypots in {event.src_path} was deleted {'' if self.folder_with_honeypots_deleted_event_count <= 1 else '(and ' + str(self.folder_with_honeypots_deleted_event_count) + ' more)'}")
+                                self.check_ransom = True
+                                self.delete_current_time = time.time()
+                                self.folder_with_honeypots_deleted_event_count = 0
+
+                if self.check_ransom:
+                    tryKillMaliciousProcess(event.src_path)
+                    self.check_ransom = False
 
             except IndexError as e:
                 pass

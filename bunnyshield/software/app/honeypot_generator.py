@@ -59,24 +59,27 @@ def __generateHoneypots():
         percentage = 0.1
         created_count = 0
         directory_walk_count = 0
+        honeypot_file_name = ""
         for current_path, _, _ in os.walk(directory):
             if directory_walk_count % gc.honeypot_interval == 0 or created_count == 0 or gc.honeypot_interval == 1 and gc.disable_honeypot_interval:
                 try:
                     if os.access(current_path, os.W_OK):
                         if gc.random_honeypot_file_name:
-                            gc.honeypot_file_name = ("." if gc.hidden_honeypot_file else "") + randomString("unique-name")
-                            honeypot_names_list.append(gc.honeypot_file_name)
+                            honeypot_file_name = ("." if gc.hidden_honeypot_file else "") + randomString("unique-name")
+                            honeypot_names_list.append(honeypot_file_name)
+
                         elif not gc.random_honeypot_file_name and not appended_single_honeypot_name:
-                            honeypot_names_list.append(gc.honeypot_file_name)
+                            honeypot_file_name = ("." if gc.hidden_honeypot_file else "") + gc.honeypot_file_name
+                            honeypot_names_list.append(honeypot_file_name)
                             appended_single_honeypot_name = True
 
                         # Criar o honeypot
-                        with open(os.path.join(current_path, gc.honeypot_file_name), 'w') as honeypot_file:
+                        with open(os.path.join(current_path, honeypot_file_name), 'w') as honeypot_file:
                             honeypot_file.write("THIS IS A PYTHON RANSOMWARE DETECTOR FILE! PLEASE! DO NOT MOVE, DELETE, RENAME OR MODIFY THIS FILE!\n")
                             honeypot_file.write(f"Unique string for this file: {randomString('unique-hash')}")
 
                         # Gerar a hash para o honeypot criado
-                        with open(os.path.join(current_path, gc.honeypot_file_name), 'rb') as honeypot_file:
+                        with open(os.path.join(current_path, honeypot_file_name), 'rb') as honeypot_file:
                             honeypots_dict_list.append(DataCreator.generateHoneypotDataDict(honeypot_file))
 
                         created_count += 1
@@ -101,6 +104,8 @@ def __generateHoneypots():
     Audit.loadRules()
     DataCreator.generateHoneypotsJson(honeypots_dict_list)
     DataCreator.generateHoneypotNamesTxt(honeypot_names_list)
+    DataCreator.generateHoneypotIntervalCountTxt()
+    DataCreator.generateConfigFile()
 
 
 def __deleteHoneypots():
@@ -155,6 +160,8 @@ def __deleteHoneypots():
     # Deletar o JSON das hashes
     DataRemover.deleteHoneypotsJson()
     DataRemover.deleteHoneypotNamesTxt()
+    DataRemover.deleteHoneypotIntervalCountTxt()
+    DataRemover.deleteConfigFile()
 
 
 def generateSingleHoneypot(event_path):
@@ -169,13 +176,15 @@ def generateSingleHoneypot(event_path):
         if int(current_interval) == int(gc.honeypot_interval) or gc.disable_honeypot_interval:
             if os.access(event_path, os.W_OK):
                 if gc.random_honeypot_file_name:
-                    random_honeypot_file_name = ("." if gc.hidden_honeypot_file else "") + randomString("unique-name")
+                    honeypot_file_name = ("." if gc.hidden_honeypot_file else "") + randomString("unique-name")
+                else:
+                    honeypot_file_name = ("." if gc.hidden_honeypot_file else "") + gc.honeypot_file_name
 
-                with open(os.path.join(event_path, random_honeypot_file_name), 'w') as honeypot_file:
+                with open(os.path.join(event_path, honeypot_file_name), 'w') as honeypot_file:
                     honeypot_file.write("THIS IS A PYTHON RANSOMWARE DETECTOR FILE! PLEASE! DO NOT MOVE, DELETE, RENAME OR MODIFY THIS FILE!\n")
                     honeypot_file.write(f"Unique string for this file: {randomString('unique-hash')}")
 
-                with open(os.path.join(event_path, random_honeypot_file_name), 'rb') as honeypot_file:
+                with open(os.path.join(event_path, honeypot_file_name), 'rb') as honeypot_file:
                     honeypot_dict = DataCreator.generateHoneypotDataDict(honeypot_file)
 
                 current_interval = 0

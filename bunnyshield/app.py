@@ -19,9 +19,9 @@ if __name__ == "__main__":
     # START
     init()
     f = Figlet(font='slant')
-    print(colored(f.renderText('CapyShield'), 'red'))
+    print(colored(f.renderText('BunnyShield'), 'red'))
     print(colored('--- A Ransomware Detector by Bash Bunny Group ---\n\n', 'red'))
-    logger.debug("Starting CapyShield Detector")
+    logger.debug("Starting BunnyShield Protection")
 
     # AUDIT
     Audit().setStatus("on")

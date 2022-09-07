@@ -11,7 +11,6 @@ from software.tools.utils import isHexStr
 def checkAndKillProcess(process, method):
     try:
         psutil.Process(process).status()
-        print(process)
         os.kill(process, SIGKILL)
         logger.critical(f"Proabable malicious process with PID {process}. Killing it...")
         end = time.perf_counter()
@@ -21,7 +20,7 @@ def checkAndKillProcess(process, method):
         pass
 
     except Exception as e:
-        logger.error(e)
+        pass
 
 
 def tryKillMaliciousProcess(current_event_path):
@@ -33,10 +32,9 @@ def tryKillMaliciousProcess(current_event_path):
     comm_pattern = '(?<=comm=")(.*?)(?=")'
     cwd_path_pattern = '(?<=cwd=")(.*?)(?=")'
     name_path_pattern = "(?<=name=)(.*?)(?=\ )"
-    #audit_event_pattern = "(?<=----)(\n|.)*?(?=----|\s*$)"
+
     try:
-        print(str(current_event_path))
-        event_list = subprocess.check_output([f"ausearch -k {gc.audit_custom_rules_key} | tail -n 5000"], shell=True, stderr=subprocess.DEVNULL).decode().rstrip().split("----")
+        event_list = subprocess.check_output([f"ausearch -k {gc.audit_custom_rules_key} | tail -n 10000"], shell=True, stderr=subprocess.DEVNULL).decode().rstrip().split("----")
         for event in event_list:
             path_list = re.findall(name_path_pattern, event)
             for event_path in path_list:
@@ -73,6 +71,10 @@ def tryKillMaliciousProcess(current_event_path):
             for process in reversed(malicious_process_list):
                 if process != '1' and ppid_malicious != gc.PID:
                     checkAndKillProcess(int(process), '2')
+
+
+def isRansomware(current_event_path):
+    pass
 
 
 if __name__ == "__main__":

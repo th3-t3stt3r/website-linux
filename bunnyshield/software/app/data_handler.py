@@ -4,6 +4,7 @@ import json
 import pathlib
 import re
 import time
+from typing import Dict
 from software.tools.logger import logger
 from software.config.shared_config import GeneralConfig as gc
 
@@ -17,8 +18,8 @@ class DataCreator:
         if not os.path.exists(gc.PATH_TO_CONFIG_FOLDER):
             os.makedirs(gc.PATH_TO_CONFIG_FOLDER)
 
-        with open(os.path.join(gc.PATH_TO_CONFIG_FOLDER, gc.json_honeypot_data_file_name), 'w') as json_file:
-            json_file.write(json_object)
+        with open(os.path.join(gc.PATH_TO_CONFIG_FOLDER, gc.json_honeypot_data_file_name), 'w') as f:
+            f.write(json_object)
 
     #
 
@@ -28,9 +29,9 @@ class DataCreator:
         if not os.path.exists(gc.PATH_TO_CONFIG_FOLDER):
             os.makedirs(gc.PATH_TO_CONFIG_FOLDER)
 
-        with open(os.path.join(gc.PATH_TO_CONFIG_FOLDER, gc.honeypot_names_file), 'w') as names_file:
+        with open(os.path.join(gc.PATH_TO_CONFIG_FOLDER, gc.honeypot_names_file), 'w') as f:
             for name in honeypot_names_list:
-                names_file.write(f"{name}\n")
+                f.write(f"{name}\n")
 
     #
 
@@ -45,6 +46,62 @@ class DataCreator:
         }
         return honeypot_file_hash_dict
 
+    #
+
+    def generateHoneypotIntervalCountTxt():
+        if not os.path.exists(gc.PATH_TO_CONFIG_FOLDER):
+            os.makedirs(gc.PATH_TO_CONFIG_FOLDER)
+
+        with open(os.path.join(gc.PATH_TO_HONEYPOT_INTERVAL_COUNT_FILE), 'w') as f:
+            f.write("1")
+
+    #
+
+    def generateConfigFile():
+        if not os.path.exists(gc.PATH_TO_CONFIG_FOLDER):
+            os.makedirs(gc.PATH_TO_CONFIG_FOLDER)
+
+        config_dict = {
+            "audit": {
+                "audit_custom_rules_file_name": gc.audit_custom_rules_file_name,
+                "audit_custom_rules_key": gc.audit_custom_rules_key,
+                "audit_custom_rules_shell_key": gc.audit_custom_rules_shell_key,
+                "audit_custom_rules_killed_key": gc.audit_custom_rules_killed_key,
+
+            },
+            "files": {
+                "json_config_file_name": gc.json_config_file_name,
+                "json_honeypot_data_file_name": gc.json_honeypot_data_file_name,
+                "honeypot_names_file": gc.honeypot_names_file,
+                "honeypot_interval_count_file_name": gc.honeypot_interval_count_file_name,
+
+            },
+            "honeypot": {
+                "honeypot_file_name": gc.honeypot_file_name,
+                "honeypot_file_extension": gc.honeypot_file_extension,
+                "random_honeypot_file_name": gc.random_honeypot_file_name,
+                "hidden_honeypot_file": gc.hidden_honeypot_file,
+                "honeypot_interval": gc.honeypot_interval,
+                "disable_honeypot_interval": gc.disable_honeypot_interval,
+                "delete_honeypots": gc.delete_honeypots,
+                "skip_to_monitor": gc.skip_to_monitor,
+                "file_update_interval": gc.file_update_interval
+            },
+            "paths": {
+                "PATH_TO_MAIN_FOLDER": gc.PATH_TO_MAIN_FOLDER,
+                "PATH_TO_SOFTWARE_FOLDER": gc.PATH_TO_SOFTWARE_FOLDER,
+                "PATH_TO_CONFIG_FOLDER": gc.PATH_TO_CONFIG_FOLDER,
+                "PATH_TO_AUDIT_CONFIG": gc.PATH_TO_AUDIT_CONFIG,
+                "PATH_TO_AUDIT": gc.PATH_TO_AUDIT,
+                "PATH_TO_AUDIT_CUSTOM_RULE_FILE": gc.PATH_TO_AUDIT_CUSTOM_RULE_FILE,
+                "PATH_TO_HONEYPOT_INTERVAL_COUNT_FILE": gc.PATH_TO_HONEYPOT_INTERVAL_COUNT_FILE,
+                "PATH_TO_CONFIG_FILE": gc.PATH_TO_CONFIG_FILE
+            }}
+        json_object = json.dumps(config_dict, indent=4)
+
+        with open(os.path.join(gc.PATH_TO_CONFIG_FILE), 'w') as f:
+            f.write(json_object)
+
 
 class DataRemover:
     def deleteHoneypotsJson():
@@ -57,6 +114,8 @@ class DataRemover:
                 logger.error(f'Could not find {gc.json_honeypot_data_file_name} in {gc.PATH_TO_CONFIG_FOLDER}')
                 quit()
 
+    #
+
     def deleteHoneypotNamesTxt():
         """Função para deletar o arquivo com os nomes dos honeypots"""
         logger.debug("Deleting Honeypot names file")
@@ -67,6 +126,26 @@ class DataRemover:
                 logger.error(f'Could not find {gc.honeypot_names_file} in {gc.PATH_TO_CONFIG_FOLDER}')
 
     #
+
+    def deleteHoneypotIntervalCountTxt():
+        """Função para deletar o arquivo com o intervalo atual de criação dos honeypots"""
+        logger.debug("Deleting Honeypot interval count file")
+        if os.path.exists(gc.PATH_TO_CONFIG_FOLDER):
+            try:
+                os.remove(gc.PATH_TO_HONEYPOT_INTERVAL_COUNT_FILE)
+            except FileNotFoundError:
+                logger.error(f'Could not find {gc.honeypot_interval_count_file_name} in {gc.PATH_TO_CONFIG_FOLDER}')
+
+    #
+
+    def deleteConfigFile():
+        """Função para deletar o arquivo de config"""
+        logger.debug("Deleting config file")
+        if os.path.exists(gc.PATH_TO_CONFIG_FOLDER):
+            try:
+                os.remove(gc.PATH_TO_CONFIG_FILE)
+            except FileNotFoundError:
+                logger.error(f'Could not find {gc.json_config_file_name} in {gc.PATH_TO_CONFIG_FOLDER}')
 
 
 class DataUpdater:
@@ -85,8 +164,8 @@ class DataUpdater:
     def getTxtData(json_file):
         try:
             honeypot_names_data = []
-            with open(os.path.join(gc.PATH_TO_CONFIG_FOLDER, json_file), "r") as names_file:
-                for line in names_file:
+            with open(os.path.join(gc.PATH_TO_CONFIG_FOLDER, json_file), "r") as f:
+                for line in f:
                     honeypot_names_data.append(line.rstrip())
                 return honeypot_names_data
 
@@ -98,6 +177,7 @@ class DataUpdater:
     def updateCreate(honeypot_dicts, json_file_name):
         """"""
         start = time.perf_counter()
+
         try:
             with open(os.path.join(gc.PATH_TO_CONFIG_FOLDER, json_file_name), 'r') as f:
                 data = json.load(f)
@@ -121,19 +201,29 @@ class DataUpdater:
 
     #
 
+    def updateMoveOrRename():
+        pass
+
+    #
+
     def updateDelete(event_paths, json_file_name, json_file_data):
         """"""
         start = time.perf_counter()
         names_to_delete = []
-
         try:
             new_json_file_data = []
-            for i, element in enumerate(json_file_data):
-                for path in event_paths:
-                    if str(path) not in (element['absolute_path']):
+            for element in json_file_data:
+                will_be_deleted = False
+                already_appended = False
+                for event_path in event_paths:
+                    if event_path in element['absolute_path']:
+                        will_be_deleted = True
+                        if gc.random_honeypot_file_name:
+                            names_to_delete.append(re.findall("([^\/]+$)", element['absolute_path'])[0])
+
+                    if not already_appended and not will_be_deleted:
+                        already_appended = True
                         new_json_file_data.append(element)
-                    else:
-                        names_to_delete.append(re.findall("([^\/]+$)", element['absolute_path'])[0])
 
             with open(os.path.join(gc.PATH_TO_CONFIG_FOLDER, json_file_name), 'w') as f:
                 f.write(json.dumps(new_json_file_data, indent=4))
