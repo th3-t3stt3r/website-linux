@@ -52,7 +52,7 @@ class GeneralConfig():
     skip_to_monitor = False
     file_update_interval = 30
     check_ransom_time = 5
-    max_tail_for_dir_changes_event = "20000"
+    max_tail_for_dir_changes_event = "5000"
     max_tail_for_shell_open_event = "100"
     unknow_extension_event_count_trigger = 5
     honeypot_modified_event_count_trigger = 5

@@ -16,7 +16,7 @@ from watchdog.events import FileSystemEventHandler
 from software.config.shared_config import GeneralConfig as gc
 from software.app.honeypot_generator import generateSingleHoneypot
 from software.app.data_handler import DataUpdater
-from software.app.proc_killer import tryKillMaliciousProcess
+from software.app.proc_killer import ProcessKiller
 
 # Classe FileSystemModifications, que herda a classe FileSystemEventHandler do watchdog
 # event.src_path é basicamente o caminho que o handler retorna
@@ -170,7 +170,7 @@ class FileMonitor:
                             new_ransom_create_check_time = time.time() - self.ransom_create_check_time
                             if new_ransom_create_check_time > gc.check_ransom_time:
                                 self.ransom_create_check_time = time.time()
-                                tryKillMaliciousProcess(event.src_path)
+                                ProcessKiller().tryKillMaliciousProcess()
                                 self.check_ransom = False
 
             except:
@@ -205,7 +205,7 @@ class FileMonitor:
                                         new_ransom_modify_check_time = time.time() - self.ransom_modify_check_time
                                         if new_ransom_modify_check_time > gc.check_ransom_time:
                                             self.ransom_modify_check_time = time.time()
-                                            tryKillMaliciousProcess(event.src_path)
+                                            ProcessKiller().tryKillMaliciousProcess()
                                             self.check_ransom = False
 
                 else:
@@ -303,7 +303,7 @@ class FileMonitor:
                     new_ransom_delete_check_time = time.time() - self.ransom_delete_check_time
                     if new_ransom_delete_check_time > gc.check_ransom_time:
                         self.ransom_delete_check_time = time.time()
-                        tryKillMaliciousProcess(event.src_path)
+                        ProcessKiller().tryKillMaliciousProcess()
                         self.check_ransom = False
 
             except IndexError as e:

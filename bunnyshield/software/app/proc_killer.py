@@ -5,85 +5,90 @@ import psutil
 import subprocess
 from signal import SIGKILL
 from software.config.shared_config import GeneralConfig as gc
-from software.tools.utils import isHexStr
 
 
-def checkAndKillProcess(process, method):
-    try:
-        psutil.Process(process).status()
-        os.kill(process, SIGKILL)
-        logger.critical(f"Proabable malicious process with PID {process}. Killing it...")
-        end = time.perf_counter()
-        logger.critical(f"Killed process with PID {process} in {round(end - start, 3)}s - [Method {method}]")
-        return True
+class ProcessKiller():
+    def __init__(self):
+        self.start = time.perf_counter()
+        self.malicious_process_killed = False
+        self.pid_pattern = "(?<=pid=)(.*?)(?=\ )"
+        self.tty_pattern = "(?<=tty=)(.*?)(?=\ )"
+        self.comm_pattern = '(?<=comm=")(.*?)(?=")'
+        self.cwd_path_pattern = '(?<=cwd=")(.*?)(?=")'
 
-    except Exception as e:
-        return False
+    #
 
+    def tryKillMaliciousProcess(self):
+        try:
+            self.firstMethod()
+        except:
+            pass
 
-def tryKillMaliciousProcess(current_event_path):
-    print("KILLINGGGGGGGGGG")
-    # METHOD 1
-    global start
-    start = time.perf_counter()
-    malicious_process_killed = False
+        try:
+            self.secondMethod()
+        except:
+            pass
+    #
 
-    ppid_pid_pattern = "(?<=pid=)(.*?)(?=\ )"
-    tty_pattern = "(?<=tty=)(.*?)(?=\ )"
-    comm_pattern = '(?<=comm=")(.*?)(?=")'
-    cwd_path_pattern = '(?<=cwd=")(.*?)(?=")'
-    name_path_pattern = "(?<=name=)(.*?)(?=\ )"
-
-    try:
-        dir_changes_events = subprocess.check_output([f"ausearch -k {gc.audit_custom_rules_key} | tail -n {gc.max_tail_for_dir_changes_event}"], shell=True, stderr=subprocess.DEVNULL).decode().rstrip().split("----")
+    def firstMethod(self):
+        dir_changes_events = subprocess.check_output([f"ausearch -k {gc.audit_custom_rules_key} | tail -n {gc.max_tail_for_dir_changes_event}"], shell=True, stderr=subprocess.DEVNULL).decode().rstrip().split("----")[-10:]
 
         for event in dir_changes_events:
             try:
-                if re.findall(tty_pattern, event)[0] != "(none)":
-                    if re.findall(comm_pattern, event)[0] != "rm":
-                        if re.findall(cwd_path_pattern, event)[0] != gc.PATH_TO_MAIN_FOLDER:
-                            path_list = re.findall(name_path_pattern, event)
+                if re.findall(self.tty_pattern, event)[0] != "(none)":
+                    if re.findall(self.comm_pattern, event)[0] != "rm":
+                        process_cwd = re.findall(self.cwd_path_pattern, event)[0]
+                        if process_cwd != gc.PATH_TO_MAIN_FOLDER:
+                            try:
+                                for pid in re.findall(self.pid_pattern, event):
+                                    if pid != '1' and pid != gc.PID:
+                                        self.malicious_process_killed = self.checkAndKillProcess(int(pid), process_cwd, '1')
 
-                            for event_path in path_list:
-                                if isHexStr(event_path):
-                                    event_path = bytes.fromhex(event_path).decode("ascii")
-                                else:
-                                    event_path = event_path[1:-1]
+                            except:
+                                pass
 
-                                if str(current_event_path) in str(event_path):
-                                    ppid_malicious = re.findall(ppid_pid_pattern, event)[0]
-                                    if ppid_malicious != '1' and ppid_malicious != gc.PID:
-                                        malicious_process_killed = checkAndKillProcess(int(ppid_malicious), '1')
-
-            except Exception as e:
+            except:
                 pass
+    #
 
-    except Exception as e:
-        pass
+    def secondMethod(self):
+        if not self.malicious_process_killed:
+            shell_open_events = subprocess.check_output([f"ausearch -l -k {gc.audit_custom_rules_shell_key} | tail -n {gc.max_tail_for_shell_open_event}"], shell=True, stderr=subprocess.DEVNULL).decode().rstrip().split("----")[-10:]
 
-    # METHOD 2
-    if not malicious_process_killed:
-        malicious_process_list = []
-        shell_open_events = subprocess.check_output([f"ausearch -l -k {gc.audit_custom_rules_shell_key} | tail -n {gc.max_tail_for_shell_open_event}"], shell=True, stderr=subprocess.DEVNULL).decode().rstrip().split("----")[-1:]
+            for event in reversed(shell_open_events):
+                try:
+                    process_cwd = re.findall(self.cwd_path_pattern, event)[0]
+                    if process_cwd != gc.PATH_TO_MAIN_FOLDER:
+                        for pid in re.findall(self.pid_pattern, event):
+                            try:
+                                if pid != '1' and pid != gc.PID:
+                                    self.malicious_process_killed = self.checkAndKillProcess(int(pid), process_cwd, '2')
 
-        for event in reversed(shell_open_events):
-            try:
-                if not gc.PATH_TO_MAIN_FOLDER in re.findall('(?<=cwd=")(.*?)(?=\")', event)[0]:
-                    pid_malicious = re.findall(ppid_pid_pattern, event)[0]
-                    malicious_process_list.append(pid_malicious)
+                            except:
+                                pass
 
-                    try:
-                        ppid_malicious = subprocess.check_output([f"ps -o ppid= -p {pid_malicious}"], shell=True, stderr=subprocess.DEVNULL).decode().rstrip()
-                        malicious_process_list.append(ppid_malicious)
+                except:
+                    pass
+    #
 
-                        for process in reversed(malicious_process_list):
-                            if process != '1' and ppid_malicious != gc.PID:
-                                malicious_process_killed = checkAndKillProcess(int(process), '2')
-                    except:
-                        pass
+    def checkAndKillProcess(self, pid, cwd, method):
+        try:
+            psutil.Process(pid).status()
+            ppid = int(subprocess.check_output([f"ps -o ppid= -p {pid}"], shell=True, stderr=subprocess.DEVNULL).decode().rstrip())
+            psutil.Process(ppid).status()
 
-            except Exception as e:
-                pass
+            os.kill(pid, SIGKILL)
+            os.kill(ppid, SIGKILL)
+
+            logger.critical(f"Ransomware process with PID {pid} and PPID {ppid}. Killing it...")
+            end = time.perf_counter()
+            logger.critical(f"Killed ransomware process with PID {pid} and PPID {ppid} in {round(end - self.start, 3)}s - [Method {method}]")
+            logger.critical(f"Ransomware file working directory is {cwd}")
+
+            return True
+
+        except:
+            return False
 
 
 if __name__ == "__main__":
