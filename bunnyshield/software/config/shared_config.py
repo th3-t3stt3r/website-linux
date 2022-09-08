@@ -50,11 +50,23 @@ class GeneralConfig():
     disable_honeypot_interval = True
     delete_honeypots = False
     skip_to_monitor = False
-    file_update_interval = 10
+    file_update_interval = 30
+    check_ransom_time = 5
+    max_tail_for_dir_changes_event = "20000"
+    max_tail_for_shell_open_event = "100"
+    unknow_extension_event_count_trigger = 5
+    honeypot_modified_event_count_trigger = 5
+    honeypot_deleted_event_count_trigger = 5
+    folder_with_honeypots_deleted_event_count_trigger = 5
+    immediate_mode = False
 
     # DYNAMIC CONFIG
     selected_directories = [
-        "/home/matheusheidemann/Documents/Github/Challenge/website-test/ransomware-test/encrypt-test"
+        "/home/matheusheidemann/Documents/Github/Challenge/website-test/ransomware-test/encrypt-test/folder1",
+        "/home/matheusheidemann/Documents/Github/Challenge/website-test/ransomware-test/encrypt-test/folder2",
+        "/home/matheusheidemann/Documents/Github/Challenge/website-test/ransomware-test/encrypt-test/folder3",
+        "/home/matheusheidemann/Documents/Github/Challenge/website-test/ransomware-test/encrypt-test/folder4",
+        "/home/matheusheidemann/Documents/Github/Challenge/website-test/ransomware-test/encrypt-test/folder5"
     ]
     file_ext_list = data_file_ext_l
 

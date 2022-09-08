@@ -1,7 +1,9 @@
+import re
 import string
 import subprocess
 import json
 import time
+from typing import Set
 import psutil
 
 
@@ -82,4 +84,24 @@ def checkio():
     psutil.Process(188842).io
 
 
-isin()
+def trydelete():
+    new_json_file_data = []
+    to_delete = []
+
+    json_file_data = ["PATO", "CACHORRO", "IGUANA", "FOCA", "CAPIVARA"]
+    event_paths = ["CACHORRO", "IGUANA"]
+
+    for element in json_file_data:
+        for event_path in event_paths:
+            if event_path in element:
+                if event_path not in to_delete:
+                    to_delete.append(element)
+
+    for element in json_file_data:
+        if element not in to_delete:
+            new_json_file_data.append(element)
+
+    print(new_json_file_data)
+
+
+trydelete()

@@ -4,6 +4,7 @@ import json
 import pathlib
 import re
 import time
+from turtle import update
 from typing import Dict
 from software.tools.logger import logger
 from software.config.shared_config import GeneralConfig as gc
@@ -174,19 +175,25 @@ class DataUpdater:
 
     #
 
-    def updateCreate(honeypot_dicts, json_file_name):
+    def updateCreate(honeypot_dicts, honeypot_old_new_dicts, json_file_data):
         """"""
         start = time.perf_counter()
 
         try:
-            with open(os.path.join(gc.PATH_TO_CONFIG_FOLDER, json_file_name), 'r') as f:
-                data = json.load(f)
-
             for honeypot_dict in honeypot_dicts:
-                data.append(honeypot_dict)
+                json_file_data.append(honeypot_dict)
 
-            with open(os.path.join(gc.PATH_TO_CONFIG_FOLDER, json_file_name), "w") as f:
-                json.dump(data, f)
+            if honeypot_old_new_dicts:
+                for element in json_file_data:
+                    already_appended = False
+                    for honeypot_dict in honeypot_old_new_dicts:
+                        if not already_appended:
+                            if honeypot_dict['old_path'] in element['absolute_path']:
+                                element['absolute_path'] = honeypot_dict['new_path']
+                                already_appended = True
+
+            with open(os.path.join(gc.PATH_TO_CONFIG_FOLDER, gc.json_honeypot_data_file_name), "w") as f:
+                json.dump(json_file_data, f)
 
             if gc.random_honeypot_file_name:
                 for honeypot_dict in honeypot_dicts:
@@ -201,31 +208,48 @@ class DataUpdater:
 
     #
 
-    def updateMoveOrRename():
-        pass
+    def updateMoveOrRename(honeypot_old_new_dicts, json_file_data):
+        start = time.perf_counter()
+        new_json_file_data = []
+        try:
+            for element in json_file_data:
+                for honeypot_dict in honeypot_old_new_dicts:
+                    if honeypot_dict['old_path'] in element['absolute_path']:
+                        element['absolute_path'] = honeypot_dict['new_path']
+                new_json_file_data.append(element)
+
+            with open(os.path.join(gc.PATH_TO_CONFIG_FOLDER, gc.json_honeypot_data_file_name), 'w') as f:
+                f.write(json.dumps(new_json_file_data, indent=4))
+
+            end = time.perf_counter()
+            logger.debug(f"Updated JSON for UPDATE event in {round(end - start, 3)}s")
+
+        except Exception as e:
+            logger.error(e)
 
     #
 
-    def updateDelete(event_paths, json_file_name, json_file_data):
+    def updateDelete(event_paths, json_file_data):
         """"""
         start = time.perf_counter()
-        names_to_delete = []
+
         try:
             new_json_file_data = []
+            names_to_delete = []
+
             for element in json_file_data:
-                will_be_deleted = False
-                already_appended = False
                 for event_path in event_paths:
                     if event_path in element['absolute_path']:
-                        will_be_deleted = True
-                        if gc.random_honeypot_file_name:
-                            names_to_delete.append(re.findall("([^\/]+$)", element['absolute_path'])[0])
+                        if event_path not in names_to_delete:
+                            names_to_delete.append(element['absolute_path'])
 
-                    if not already_appended and not will_be_deleted:
-                        already_appended = True
-                        new_json_file_data.append(element)
+            for element in json_file_data:
+                if element['absolute_path'] in names_to_delete:
+                    pass
+                else:
+                    new_json_file_data.append(element)
 
-            with open(os.path.join(gc.PATH_TO_CONFIG_FOLDER, json_file_name), 'w') as f:
+            with open(os.path.join(gc.PATH_TO_CONFIG_FOLDER, gc.json_honeypot_data_file_name), 'w') as f:
                 f.write(json.dumps(new_json_file_data, indent=4))
 
             end = time.perf_counter()

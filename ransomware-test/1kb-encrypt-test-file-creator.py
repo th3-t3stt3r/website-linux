@@ -4,25 +4,32 @@ import multiprocessing
 
 
 class DirectoryCreator:
-    def __init__(self, root_dir, folders_to_create, sub_folders_to_create, files_to_create):
+    def __init__(self, root_dir, folders_to_create, sub_folders_to_create, files_to_create, delete_only):
         self.root_dir = root_dir
         self.folders_to_create = folders_to_create
         self.sub_folders_to_create = sub_folders_to_create
         self.files_to_create = files_to_create
+        self.delete_only = delete_only
 
     def createRootDirectory(self):
         if not os.path.exists(self.root_dir):
             print(f"Creating directory {self.root_dir}")
             os.mkdir(self.root_dir)
-        else:
+
+        elif os.path.exists(self.root_dir):
             print(f"Deleting directory {self.root_dir}")
             for current_path, folders_in_current_path, files_in_current_path in os.walk(self.root_dir, topdown=False):
                 for file in files_in_current_path:
                     os.remove(os.path.join(current_path, file))
                 for folder in folders_in_current_path:
                     os.rmdir(os.path.join(current_path, folder))
-            print(f"Creating directory {self.root_dir}")
             os.rmdir(self.root_dir)
+
+            if not self.delete_only:
+                print(f"Creating directory {self.root_dir}")
+                os.mkdir(self.root_dir)
+            else:
+                quit()
 
     def createFoldersAndSubfolders(self):
         index = 1
@@ -77,9 +84,10 @@ class DirectoryCreator:
 if __name__ == "__main__":
     dc = DirectoryCreator(
         root_dir="/home/matheusheidemann/Documents/Github/Challenge/website-test/ransomware-test/encrypt-test/",
-        folders_to_create=2,
-        sub_folders_to_create=2,
-        files_to_create=1
+        folders_to_create=5,
+        sub_folders_to_create=2000,
+        files_to_create=10,
+        delete_only=False
     )
     start = perf_counter()
     dc.run()

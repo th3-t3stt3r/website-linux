@@ -33,7 +33,7 @@ if __name__ == "__main__":
 
     # FILE MONITOR
     if not gc.delete_honeypots:
-        logger.debug("Starting Monitor")
+        logger.debug("Starting File Monitor")
         FileMonitor.start()
     else:
         quit()

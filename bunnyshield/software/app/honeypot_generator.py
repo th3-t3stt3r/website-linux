@@ -37,12 +37,12 @@ def __generateHoneypots():
     honeypots_dict_list = []
     honeypot_names_list = []
     total_created_count = 0
-    appended_single_honeypot_name = False
 
     Audit.createCustomRuleFile()
 
     start = time.perf_counter()
     for directory in gc.selected_directories:
+        appended_single_honeypot_name = False
         directory_count = 0
 
         for root in os.walk(directory):
