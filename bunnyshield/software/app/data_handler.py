@@ -68,13 +68,13 @@ class DataCreator:
                 "audit_custom_rules_key": gc.audit_custom_rules_key,
                 "audit_custom_rules_shell_key": gc.audit_custom_rules_shell_key,
                 "audit_custom_rules_killed_key": gc.audit_custom_rules_killed_key,
-
             },
             "files": {
                 "json_config_file_name": gc.json_config_file_name,
                 "json_honeypot_data_file_name": gc.json_honeypot_data_file_name,
                 "honeypot_names_file": gc.honeypot_names_file,
                 "honeypot_interval_count_file_name": gc.honeypot_interval_count_file_name,
+                "file_update_interval": gc.file_update_interval
 
             },
             "honeypot": {
@@ -82,22 +82,38 @@ class DataCreator:
                 "honeypot_file_extension": gc.honeypot_file_extension,
                 "random_honeypot_file_name": gc.random_honeypot_file_name,
                 "hidden_honeypot_file": gc.hidden_honeypot_file,
-                "honeypot_interval": gc.honeypot_interval,
-                "disable_honeypot_interval": gc.disable_honeypot_interval,
+
+            },
+            "general": {
                 "delete_honeypots": gc.delete_honeypots,
                 "skip_to_monitor": gc.skip_to_monitor,
-                "file_update_interval": gc.file_update_interval
+                "immediate_mode": gc.immediate_mode
             },
-            "paths": {
+            "intervals": {
+                "honeypot_interval": gc.honeypot_interval,
+                "disable_honeypot_interval": gc.disable_honeypot_interval,
+                "check_ransom_time": gc.check_ransom_time,
+                "max_tail_for_dir_changes_event": gc.max_tail_for_dir_changes_event,
+                "max_tail_for_shell_open_event": gc.max_tail_for_shell_open_event,
+                "unknow_extension_event_count_trigger": gc.unknow_extension_event_count_trigger,
+                "honeypot_modified_event_count_trigger": gc.honeypot_modified_event_count_trigger,
+                "honeypot_deleted_event_count_trigger": gc.honeypot_deleted_event_count_trigger,
+                "folder_with_honeypots_deleted_event_count_trigger": gc.folder_with_honeypots_deleted_event_count_trigger,
+            },
+            "software-paths": {
                 "PATH_TO_MAIN_FOLDER": gc.PATH_TO_MAIN_FOLDER,
                 "PATH_TO_SOFTWARE_FOLDER": gc.PATH_TO_SOFTWARE_FOLDER,
                 "PATH_TO_CONFIG_FOLDER": gc.PATH_TO_CONFIG_FOLDER,
-                "PATH_TO_AUDIT_CONFIG": gc.PATH_TO_AUDIT_CONFIG,
-                "PATH_TO_AUDIT": gc.PATH_TO_AUDIT,
-                "PATH_TO_AUDIT_CUSTOM_RULE_FILE": gc.PATH_TO_AUDIT_CUSTOM_RULE_FILE,
+                "PATH_TO_CONFIG_FILE": gc.PATH_TO_CONFIG_FILE,
                 "PATH_TO_HONEYPOT_INTERVAL_COUNT_FILE": gc.PATH_TO_HONEYPOT_INTERVAL_COUNT_FILE,
-                "PATH_TO_CONFIG_FILE": gc.PATH_TO_CONFIG_FILE
+
+            },
+            "audit_paths": {
+                "PATH_TO_AUDIT": gc.PATH_TO_AUDIT,
+                "PATH_TO_AUDIT_CONFIG": gc.PATH_TO_AUDIT_CONFIG,
+                "PATH_TO_AUDIT_CUSTOM_RULE_FILE": gc.PATH_TO_AUDIT_CUSTOM_RULE_FILE,
             }}
+
         json_object = json.dumps(config_dict, indent=4)
 
         with open(os.path.join(gc.PATH_TO_CONFIG_FILE), 'w') as f:

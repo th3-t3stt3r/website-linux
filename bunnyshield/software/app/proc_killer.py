@@ -20,12 +20,14 @@ class ProcessKiller():
 
     def tryKillMaliciousProcess(self):
         try:
-            self.firstMethod()
+            if not self.malicious_process_killed:
+                self.firstMethod()
         except:
             pass
 
         try:
-            self.secondMethod()
+            if not self.malicious_process_killed:
+                self.secondMethod()
         except:
             pass
     #
@@ -52,23 +54,22 @@ class ProcessKiller():
     #
 
     def secondMethod(self):
-        if not self.malicious_process_killed:
-            shell_open_events = subprocess.check_output([f"ausearch -l -k {gc.audit_custom_rules_shell_key} | tail -n {gc.max_tail_for_shell_open_event}"], shell=True, stderr=subprocess.DEVNULL).decode().rstrip().split("----")[-10:]
+        shell_open_events = subprocess.check_output([f"ausearch -l -k {gc.audit_custom_rules_shell_key} | tail -n {gc.max_tail_for_shell_open_event}"], shell=True, stderr=subprocess.DEVNULL).decode().rstrip().split("----")[-10:]
 
-            for event in reversed(shell_open_events):
-                try:
-                    process_cwd = re.findall(self.cwd_path_pattern, event)[0]
-                    if process_cwd != gc.PATH_TO_MAIN_FOLDER:
-                        for pid in re.findall(self.pid_pattern, event):
-                            try:
-                                if pid != '1' and pid != gc.PID:
-                                    self.malicious_process_killed = self.checkAndKillProcess(int(pid), process_cwd, '2')
+        for event in reversed(shell_open_events):
+            try:
+                process_cwd = re.findall(self.cwd_path_pattern, event)[0]
+                if process_cwd != gc.PATH_TO_MAIN_FOLDER:
+                    for pid in re.findall(self.pid_pattern, event):
+                        try:
+                            if pid != '1' and pid != gc.PID:
+                                self.malicious_process_killed = self.checkAndKillProcess(int(pid), process_cwd, '2')
 
-                            except:
-                                pass
+                        except:
+                            pass
 
-                except:
-                    pass
+            except:
+                pass
     #
 
     def checkAndKillProcess(self, pid, cwd, method):
